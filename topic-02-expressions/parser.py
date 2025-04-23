@@ -48,6 +48,10 @@ def test_parse_factor():
     tokens = tokenize("(2+3)")
     ast, tokens = parse_factor(tokens)
     assert ast == {'tag': '+', 'left': {'tag': 'number', 'value': 2}, 'right': {'tag': 'number', 'value': 3}}
+    tokens = tokenize("((1+1)-0)")
+    ast, tokens = parse_factor(tokens)
+    assert ast == {'tag': '-', 'left': {'tag': '+', 'left': {'tag': 'number', 'value': 1}, 'right':{'tag': 'number', 'value': 1}}, 'right': {'tag': 'number', 'value': 0}}
+    
 
 def parse_term(tokens):
     """
@@ -77,6 +81,10 @@ def test_parse_term():
     tokens = tokenize("2*4/6")
     ast, tokens = parse_term(tokens)
     assert ast == {'tag': '/', 'left': {'tag': '*', 'left': {'tag': 'number', 'value': 2}, 'right': {'tag': 'number', 'value': 4}}, 'right': {'tag': 'number', 'value': 6}}
+    tokens = tokenize("1/1*0")
+    ast, tokens = parse_term(tokens)
+    assert ast == {'tag': '*', 'left': {'tag': '/', 'left': {'tag': 'number', 'value': 1}, 'right':{'tag': 'number', 'value': 1}}, 'right': {'tag': 'number', 'value': 0}}
+    
 
 def parse_expression(tokens):
     """

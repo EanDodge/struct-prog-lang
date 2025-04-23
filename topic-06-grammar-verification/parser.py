@@ -23,21 +23,25 @@ grammar = """
     print_statement = "print" [ expression ]
     if_statement = "if" "(" expression ")" statement_block [ "else" statement_block ]
     while_statement = "while" "(" expression ")" statement_block
-    statement = statement_block | if_statement | while_statement | print_statement | assignment_statement
+    statement = statement_block | if_statement | while_statement | print_statement | assignment_statement | switch_statement
     program = [ statement { ";" statement } ]
+    username = <identifier>
+    switch_statement = "switch" "(" expression ")" "{" { "case" expression ":" statement_block } [ "default" ":" statement_block ] "}"
 """
 
 # --- Parsing Functions and Their Tests ---
 
 def parse_factor(tokens):
     """
-    factor = <number> | <identifier> | "(" expression ")" | "!" expression | "-" expression
+    factor = <number> | <identifier> | "(" expression ")" | "!" expression | "-" expression | username
     """
     token = tokens[0]
     if token["tag"] == "number":
         return {"tag": "number", "value": token["value"]}, tokens[1:]
     if token["tag"] == "identifier":
         return {"tag": "identifier", "value": token["value"]}, tokens[1:]
+    if token["tag"] == "username":
+        return {"tag": "identifier", "value": "edodge5@kent.edu"}, tokens[1:]
     if token["tag"] == "(":
         ast, tokens = parse_expression(tokens[1:])
         assert tokens[0]["tag"] == ")", f"Expected ')' but got {tokens[0]}"
@@ -406,6 +410,13 @@ def test_parse_print_statement():
     print("testing parse_print_statement...")
     ast, tokens = parse_print_statement(tokenize("print 1"))
     assert ast == {"tag": "print", "value": {"tag": "number", "value": 1}}
+    ast, tokens = parse_print_statement(tokenize("print x"))
+    #print(ast)
+    assert ast == {"tag": "print", "value": {"tag": "identifier", "value": "x"}}
+    #ast, tokens = parse_print_statement(tokenize("print _kentID_"))
+    #assert ast == {"tag": "print", "value": {"tag": "username", "value": "edodge5@kent.edu"}}
+    
+    #print(ast)
 
 def parse_if_statement(tokens):
     """
@@ -448,7 +459,14 @@ def test_parse_if_statement():
         'condition': {'tag': 'number', 'value': 1},
         'then': {'tag': 'block', 'statements': [{'tag': 'print', 'value': {'tag': 'number', 'value': 1}}]},
         'else': {'tag': 'block', 'statements': [{'tag': 'print', 'value': {'tag': 'number', 'value': 2}}]}
+    
     }
+    ast, _ = parse_if_statement(tokenize("if(1){ edodge5; print _kentID_}"))
+    #print(ast)
+    assert ast == {'tag': 'if', 'condition': 
+    {'tag': 'number', 'value': 1}, 'then': {'tag': 'block', 'statements': 
+    [{'tag': 'ID', 'value': '_kentID_'}, {'tag': 'print', 'value': 
+    {'tag': 'identifier', 'value': 'edodge5@kent.edu'}}]}, 'else': None}
 
 def parse_while_statement(tokens):
     """
@@ -505,9 +523,80 @@ def test_parse_assignment_statement():
     ast, tokens = parse_assignment_statement(tokenize("2"))
     assert ast == {"tag": "number", "value": 2}
 
+
+def parse_username_statement(tokens):
+    """
+    username = <identifier>
+    """
+    assert tokens[0]["tag"] == "username", f"Expected 'edodge5', got {tokens[0]}"
+    tokens = tokens[1:]
+    return {"tag": "username", "value": "edodge5"}, tokens
+    
+def test_parse_username_statement():
+    """
+    username = <identifier>
+    """
+    print("testing parse_username_statement...")
+    ast, tokens = parse_username_statement(tokenize("edodge5"))
+    assert ast == {"tag": "username", "value": "edodge5"}
+    tokens = tokenize("edodge5;")
+    ast, tokens = parse_username_statement(tokens)
+    assert ast == {"tag": "username", "value": "edodge5"}
+    assert tokens[0]["tag"] == ";"
+
+def parse_break_statement(tokens):
+    """
+    break_statement = "break"
+    """
+    assert tokens[0]["tag"] == "break", f"Expected 'break', got {tokens[0]}"
+    tokens = tokens[1:]
+    return {"tag": "break"}, tokens
+
+def parse_switch_statement(tokens):
+    """
+    switch_statement = "switch" "(" expression ")" "{" { "case" expression ":" statement_block } [ "default" ":" statement_block ] "}"
+    """
+    print('got here at least')
+    assert tokens[0]["tag"] == "switch", f"Expected 'switch', got {tokens[0]}"
+    tokens = tokens[1:]
+    assert tokens[0]["tag"] == "(", f"Expected '(', got {tokens[0]}"
+    tokens = tokens[1:]
+    switch_expression, tokens = parse_expression(tokens)
+    assert tokens[0]["tag"] == ")", f"Expected ')', got {tokens[0]}"
+    tokens = tokens[1:]
+    assert tokens[0]["tag"] == "{", f"Expected '{{', got {tokens[0]}"
+    tokens = tokens[1:]
+
+    cases = []
+    default_case = None
+
+    while tokens[0]["tag"] == "case":
+        tokens = tokens[1:]
+        case_expression, tokens = parse_expression(tokens)
+        assert tokens[0]["tag"] == ":", f"Expected ':', got {tokens[0]}"
+        tokens = tokens[1:]
+        case_block, tokens = parse_statement_block(tokens)
+        cases.append({"case": case_expression, "block": case_block})
+
+    if tokens[0]["tag"] == "default":
+        tokens = tokens[1:]
+        assert tokens[0]["tag"] == ":", f"Expected ':', got {tokens[0]}"
+        tokens = tokens[1:]
+        default_case, tokens = parse_statement_block(tokens)
+
+    assert tokens[0]["tag"] == "}", f"Expected '}}', got {tokens[0]}"
+    tokens = tokens[1:]
+
+    return {
+        "tag": "switch",
+        "expression": switch_expression,
+        "cases": cases,
+        "default": default_case,
+    }, tokens
+
 def parse_statement(tokens):
     """
-    statement = statement_block | if_statement | while_statement | print_statement | assignment_statement
+    statement = statement_block | if_statement | while_statement | print_statement | assignment_statement | switch_statement
     """
     tag = tokens[0]["tag"]
     if tag == "{":
@@ -518,11 +607,18 @@ def parse_statement(tokens):
         return parse_while_statement(tokens)
     if tag == "print":
         return parse_print_statement(tokens)
+    if tag == "username":
+        return parse_username_statement(tokens)
+    if tag == "break":
+        return parse_break_statement(tokens)
+    if tag == "switch":
+        return parse_switch_statement(tokens)
     return parse_assignment_statement(tokens)
+    
 
 def test_parse_statement():
     """
-    statement = statement_block | if_statement | while_statement | print_statement | assignment_statement
+    statement = statement_block | if_statement | while_statement | print_statement | assignment_statement | switch_statement
     """
     print("testing parse_statement...")
     ast, _ = parse_statement(tokenize("{print 1}"))
@@ -588,6 +684,7 @@ if __name__ == "__main__":
         test_parse_assignment_statement,
         test_parse_statement,
         test_parse_program,
+        test_parse_username_statement,
     ]
 
     untested_grammar = normalized_grammar

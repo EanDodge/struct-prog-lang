@@ -13,13 +13,22 @@ def evaluate(ast, environment={}):
         return last_value
     if ast["tag"] == "block":
         for statement in ast["statements"]:
-            _ = evaluate(statement, environment)
+            is_break = evaluate(statement, environment)
+            if is_break:
+                break
+    if ast["tag"] == "break":
+        print("break")
+        return True
     if ast["tag"] == "print":
         value = evaluate(ast["value"], environment)
         s = str(value)
         print(s)
         printed_string = s
         return None
+    if ast["tag"] == "username":
+        #print("username")
+        environment["kentID"] = "edodge5@kent.edu"
+        #print(environment)
     if ast["tag"] == "if":
         condition_value = evaluate(ast["condition"], environment)
         if condition_value:
@@ -39,6 +48,16 @@ def evaluate(ast, environment={}):
         assert type(identifier) is str
         value = evaluate(ast["value"],environment)
         environment[identifier] = value
+    if ast["tag"] == "switch":
+        switch_value = evaluate(ast["expression"], environment)
+        for case in ast["cases"]:
+            case_value = evaluate(case["case"], environment)
+            if switch_value == case_value:
+                evaluate(case["block"], environment)
+                return None  # Exit after the first matching case
+        if ast["default"]:
+            evaluate(ast["default"], environment)
+        return None
     if ast["tag"] == "number":
         return ast["value"]
     if ast["tag"] == "identifier":
@@ -144,6 +163,7 @@ def test_evaluate_division():
 def eval(s, environment={}):
     tokens = tokenize(s)
     ast = parse(tokens)
+    #print(ast)
     result = evaluate(ast, environment)
     return result
 
@@ -201,6 +221,8 @@ def test_evaluate_print():
     assert printed_string == "3"
     assert eval("print 3.14") == None    
     assert printed_string == "3.14"
+    assert eval("edodge5; print kentID") == None
+    #assert printed_string == "3"
 
 def test_evaluate_assignment():
     print("testing evaluate assignment")
@@ -216,6 +238,7 @@ def test_if_statement():
     assert eval("if(0){x=5}else{y=9}",env) == None
     assert env["x"] == 8
     assert env["y"] == 9
+    assert eval("if(5>1){edodge5; break; print kentID}",env) == None
 
 def test_while_statement():
     print("testing while statement")
@@ -223,6 +246,29 @@ def test_while_statement():
     assert eval("while(x<6){y=y+1;x=x+1}",env) == None
     assert env["x"] == 6
     assert env["y"] == 7
+
+def test_switch_statement():
+    print("testing switch statement...")
+    env = {}
+    ast = {
+        "tag": "switch",
+        "expression": {"tag": "number", "value": 2},
+        "cases": [
+            {"case": {"tag": "number", "value": 1}, "block": {"tag": "block", "statements": [{"tag": "print", "value": {"tag": "number", "value": 1}}]}},
+            {"case": {"tag": "number", "value": 2}, "block": {"tag": "block", "statements": [{"tag": "print", "value": {"tag": "number", "value": 2}}]}},
+        ],
+        "default": {"tag": "block", "statements": [{"tag": "print", "value": {"tag": "number", "value": 0}}]},
+    }
+    evaluate(ast, env)  # Should print "2"
+    # assert eval("switch (2) " \
+    # "case 1: {print 1}"
+    # "case 2: {print 2}"
+    # "default: {print 0}",env) == None
+    env['x'] = 2
+    
+
+    assert eval("edodge5; switch (x) { case 1: {print 1} case 2: {print kentID} default: {print 0}} ",env) == None
+
 
 if __name__ == "__main__":
     test_evaluate_number()
@@ -235,4 +281,5 @@ if __name__ == "__main__":
     test_evaluate_identifier()
     test_if_statement()
     test_while_statement()
+    test_switch_statement()
     print("done.")

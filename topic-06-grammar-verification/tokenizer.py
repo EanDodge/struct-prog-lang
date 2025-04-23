@@ -3,6 +3,11 @@ import re
 # Define patterns for tokens
 patterns = [
     [r"print","print"],
+    [r"edodge5","username"],
+    [r"case", "case"],
+    [r"default", "default"],
+    [r"switch", "switch"],
+    #[r"_kentID_", "ID"],
     [r"if","if"],
     [r"else","else"],
     [r"while","while"],
@@ -14,7 +19,7 @@ patterns = [
     [r"or","||"],
     [r"not","!"],
     [r"\d*\.\d+|\d+\.\d*|\d+", "number"],
-    [r"[a-zA-Z_][a-zA-Z0-9_]*", "identifier"],  # identifiers
+    [r"[_a-zA-Z_][a-zA-Z0-9_]*", "identifier"],  # variable names
     [r"\+", "+"],
     [r"\-", "-"],
     [r"\*", "*"],
@@ -34,6 +39,7 @@ patterns = [
     [r"\|\|", "||"],
     [r"\!", "!"],
     [r"\{", "{"],
+    [r"\:", ":"],
     [r"\}", "}"],
     [r"\[", "["],
     [r"\]", "]"],
